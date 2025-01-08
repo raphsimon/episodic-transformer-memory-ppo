@@ -38,7 +38,7 @@ class PPOTrainer:
         if not os.path.exists("./summaries"):
             os.makedirs("./summaries")
         timestamp = time.strftime("/%Y%m%d-%H%M%S" + "/")
-        self.writer = SummaryWriter("./summaries/" + run_id + timestamp)
+        self.writer = SummaryWriter("./summaries/" + timestamp + '_' + run_id)
 
         # Init dummy environment to retrieve action space, observation space and max episode length
         print("Step 1: Init dummy environment")

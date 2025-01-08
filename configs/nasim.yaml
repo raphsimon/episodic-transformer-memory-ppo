@@ -3,7 +3,7 @@ environment:
     name: "SmallGenPO-v0"
 gamma: 0.99
 lamda: 0.95
-updates: 10 # Basically the number of epochs
+updates: 100 # Basically the number of epochs
 epochs: 4
 n_workers: 8
 worker_steps: 512 # Set it higher than the max_episode_steps of the environment
