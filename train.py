@@ -14,10 +14,12 @@ def main():
         --config=<path>            Path to the yaml config file [default: ./configs/poc_memory_env.yaml]
         --run-id=<path>            Specifies the tag for saving the tensorboard summary [default: run].
         --cpu                      Force training on CPU [default: False]
+        --save-model               Save the model after training [default: False]
     """
     options = docopt(_USAGE)
     run_id = options["--run-id"]
     cpu = options["--cpu"]
+    save_model = options["--save-model"]
     # Parse the yaml config file. The result is a dictionary, which is passed to the trainer.
     config = YamlParser(options["--config"]).get_config()
 
@@ -32,7 +34,7 @@ def main():
 
     # Initialize the PPO trainer and commence training
     trainer = PPOTrainer(config, run_id=run_id, device=device)
-    trainer.run_training()
+    trainer.run_training(save_model)
     trainer.close()
 
 if __name__ == "__main__":

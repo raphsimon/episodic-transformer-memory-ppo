@@ -69,7 +69,7 @@ class PPOTrainer:
             worker.child.send(("reset", None))
         # Grab initial observations and store them in their respective placeholder location
         self.obs = np.zeros((self.num_workers,) + observation_space.shape, dtype=np.float32)
-        for w, worker in enumerate(self.workers):
+        for w, worker in enumerate(self.workers):          
             self.obs[w] = worker.child.recv()
 
         # Setup placeholders for each worker's current episodic memory
@@ -98,7 +98,7 @@ class PPOTrainer:
         3, 4, 5, 6
         """
 
-    def run_training(self) -> None:
+    def run_training(self, save_model=False) -> None:
         """Runs the entire training logic from sampling data to optimizing the model. Only the final model is saved."""
         print("Step 6: Starting training using " + str(self.device))
         # Store episode results for monitoring statistics
@@ -112,6 +112,7 @@ class PPOTrainer:
 
             # Sample training data
             sampled_episode_info = self._sample_training_data()
+            #print(f"DEBUG sampled_episode_info: {sampled_episode_info}")
 
             # Prepare the sampled data inside the buffer (splits data into sequences)
             self.buffer.prepare_batch_dict()
@@ -119,10 +120,13 @@ class PPOTrainer:
             # Train epochs
             training_stats, grad_info = self._train_epochs(learning_rate, clip_range, beta)
             training_stats = np.mean(training_stats, axis=0)
+            #print(f"DEBUG training_stats: {training_stats}")
+
 
             # Store recent episode infos
             episode_infos.extend(sampled_episode_info)
             episode_result = process_episode_info(episode_infos)
+            #print(f"DEBUG episode_result: {episode_result}")
 
             # Print training statistics
             if "success" in episode_result:
@@ -140,7 +144,8 @@ class PPOTrainer:
             self._write_training_summary(update, training_stats, episode_result)
 
         # Save the trained model at the end of the training
-        self._save_model()
+        if save_model:
+            self._save_model()
 
     def _sample_training_data(self) -> list:
         """Runs all n workers for n steps to sample training data.
