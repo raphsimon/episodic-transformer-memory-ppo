@@ -26,6 +26,9 @@ class PPOTrainer:
         self.config = config
         self.device = device
         self.run_id = run_id
+        self.total_timesteps = config["timesteps"]
+        self.num_timesteps = 0
+        self.total_updates = config["updates"]
         self.num_workers = config["n_workers"]
         self.lr_schedule = config["learning_rate_schedule"]
         self.beta_schedule = config["beta_schedule"]
@@ -103,8 +106,9 @@ class PPOTrainer:
         print("Step 6: Starting training using " + str(self.device))
         # Store episode results for monitoring statistics
         episode_infos = deque(maxlen=100)
+        update = 0
 
-        for update in range(self.config["updates"]):
+        while self.num_timesteps < self.total_timesteps:
             # Decay hyperparameters polynomially based on the provided config
             learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"], self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
             beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
@@ -128,6 +132,13 @@ class PPOTrainer:
             episode_result = process_episode_info(episode_infos)
             #print(f"DEBUG episode_result: {episode_result}")
 
+            print(sampled_episode_info)
+            print(f'Sampled_info_length: {len(sampled_episode_info)}')
+            executed_steps = sum([d['length'] for d in sampled_episode_info])
+            print(f'Executed steps: {executed_steps}')
+            self.num_timesteps += executed_steps
+            print(f'Total env steps: {self.num_timesteps}')
+            
             # Print training statistics
             if "success" in episode_result:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
@@ -139,9 +150,12 @@ class PPOTrainer:
                     training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
             print(result)
 
+            update += 1
+            update = min(update, self.total_updates) # Bound it at self.total_updates
+
             # Write training statistics to tensorboard
-            self._write_gradient_summary(update, grad_info)
-            self._write_training_summary(update, training_stats, episode_result)
+            self._write_gradient_summary(self.num_timesteps, grad_info)
+            self._write_training_summary(self.num_timesteps, training_stats, episode_result)
 
         # Save the trained model at the end of the training
         if save_model:
