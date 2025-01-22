@@ -2,7 +2,7 @@ environment:
     type: "NASim"
     name: "LargeGenPO-v0"
 gamma: 0.99
-lamda: 0.95
+lamda: 0.95                 # GAE regularization parameter
 timesteps: 100000
 updates: 10                 # Number of cycles that the entire PPO algorithm will run
 epochs: 4                   # Number of times that the whole batch of data is used to update the policy 
