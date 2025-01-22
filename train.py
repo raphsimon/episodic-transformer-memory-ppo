@@ -2,6 +2,7 @@ import torch
 from docopt import docopt
 from trainer import PPOTrainer
 from yaml_parser import YamlParser
+import time
 
 def main():
     # Command line arguments via docopt
@@ -32,10 +33,20 @@ def main():
         device = torch.device("cpu")
         torch.set_default_tensor_type("torch.FloatTensor")
 
+    # Start the timer and print the start time
+    start_time = time.time()
+    print(f"Training started at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
+
     # Initialize the PPO trainer and commence training
     trainer = PPOTrainer(config, run_id=run_id, device=device)
     trainer.run_training(save_model)
     trainer.close()
+
+    # Calculate and print the total duration
+    end_time = time.time()
+    duration = end_time - start_time
+    print(f"Training finished at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}")
+    print(f"Total training duration: {duration:.2f} seconds")
 
 if __name__ == "__main__":
     main()
