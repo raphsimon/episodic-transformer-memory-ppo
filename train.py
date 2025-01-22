@@ -3,6 +3,7 @@ from docopt import docopt
 from trainer import PPOTrainer
 from yaml_parser import YamlParser
 import time
+import traceback
 
 def main():
     # Command line arguments via docopt
@@ -37,10 +38,15 @@ def main():
     start_time = time.time()
     print(f"Training started at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
 
-    # Initialize the PPO trainer and commence training
-    trainer = PPOTrainer(config, run_id=run_id, device=device)
-    trainer.run_training(save_model)
-    trainer.close()
+    try: 
+        # Initialize the PPO trainer and commence training
+        trainer = PPOTrainer(config, run_id=run_id, device=device)
+        trainer.run_training(save_model)
+    except Exception as e:
+        print(f"An error occurred during training:")
+        traceback.print_exc()
+    finally:
+        trainer.close()
 
     # Calculate and print the total duration
     end_time = time.time()
