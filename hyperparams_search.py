@@ -45,8 +45,7 @@ def optimize_hyperparameters(study_name, optimize_trial, database_url, n_trials=
         study_name=study_name,
         storage=storage,
         load_if_exists=True,
-        direction='maximize',
-        #pruner=MedianPruner(n_startup_trials=10, n_min_trials=10) TODO: Do we add a pruner? How?
+        direction='maximize'
     ) # No sampler is specified, so a default sampler (TPE) is used.
     
     if max_total_trials is not None:
@@ -186,7 +185,6 @@ if __name__ == '__main__':
             trainer.close()
             if device.type == 'cuda':
                 torch.cuda.empty_cache()
-
 
     optimize_hyperparameters(study_name, optimize_trial, args.db_url, args.trials, args.max_total_trials)
 
