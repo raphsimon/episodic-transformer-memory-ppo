@@ -1,0 +1,6 @@
+environment:
+    type: "NASim"
+    name: "MediumGenPO-v0"
+n_workers: 8            # Number of environments that are used to sample training data
+worker_steps: 512       # Number of steps an agent samples data in each environment (batch size = n_workers * worker_steps)
+updates: 1230            # 8 * 512 * 250 = 1024000 steps
