@@ -38,7 +38,7 @@ class PPOTrainer:
         # Setup Tensorboard Summary Writer
         if not os.path.exists("./summaries"):
             os.makedirs("./summaries")
-        timestamp = time.strftime("/%Y%m%d-%H%M%S" + "/")
+        timestamp = time.strftime("/%Y%m%d-%H_%M_%S")
         self.writer = SummaryWriter("./summaries/" + timestamp + '_' + run_id)
 
         # Init dummy environment to retrieve action space, observation space and max episode length
@@ -114,7 +114,6 @@ class PPOTrainer:
 
             # Sample training data
             sampled_episode_info = self._sample_training_data()
-            #print(f"DEBUG sampled_episode_info: {sampled_episode_info}")
 
             # Prepare the sampled data inside the buffer (splits data into sequences)
             self.buffer.prepare_batch_dict()
@@ -122,19 +121,15 @@ class PPOTrainer:
             # Train epochs
             training_stats, grad_info = self._train_epochs(learning_rate, clip_range, beta)
             training_stats = np.mean(training_stats, axis=0)
-            #print(f"DEBUG training_stats: {training_stats}")
 
             # Store recent episode infos
             episode_infos.extend(sampled_episode_info)
             episode_result = process_episode_info(episode_infos)
-            #print(f"DEBUG episode_result: {episode_result}")
 
-            print(sampled_episode_info)
-            print(f'Sampled_info_length: {len(sampled_episode_info)}') # Can take up a lot of screenspace in the later stages of training
-            executed_steps = sum([d['length'] for d in sampled_episode_info]) # WARNING: This does not give you the full overview!
-            print(f'Executed steps: {executed_steps}')
-            total_steps += executed_steps
-            print(f'Total env steps: {total_steps}')
+            #executed_steps = sum([d['length'] for d in sampled_episode_info]) # WARNING: This does not give you the full overview!
+            #print(f'Executed steps: {executed_steps}')
+            #total_steps += executed_steps
+            #print(f'Total env steps: {total_steps}')
             
             # It can happen that there are no episode results in the first update,
             # because no worker was able to finish an episode
