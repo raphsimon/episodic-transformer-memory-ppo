@@ -42,12 +42,7 @@ def evaluate(model: ActorCriticModel,
             # Sample action
             action = [] 
             for action_branch in policy:
-                #action.append(action_branch.sample().item())
-                print(action_branch.probs)
-                print("Max likelyhood:", torch.argmax(action_branch.probs))
-                sampled_action = action_branch.sample().item()
-                print("Sampled action:", sampled_action)
-                action.append(sampled_action)
+                action.append(action_branch.sample().item())
 
             # Step environemnt
             obs, reward, done, info = env.step(action)
