@@ -12,6 +12,7 @@ from buffer import Buffer
 from model import ActorCriticModel
 from utils import batched_index_select, create_env, polynomial_decay, process_episode_info
 from worker import Worker
+from evaluation import evaluate
 
 class PPOTrainer:
     def __init__(self, config:dict, run_id:str="run", device:torch.device=torch.device("cpu")) -> None:
@@ -26,9 +27,6 @@ class PPOTrainer:
         self.config = config
         self.device = device
         self.run_id = run_id
-        self.total_timesteps = config["timesteps"]
-        self.num_timesteps = 0
-        self.total_updates = config["updates"]
         self.num_workers = config["n_workers"]
         self.lr_schedule = config["learning_rate_schedule"]
         self.beta_schedule = config["beta_schedule"]
@@ -101,14 +99,14 @@ class PPOTrainer:
         3, 4, 5, 6
         """
 
-    def run_training(self, save_model=False) -> None:
+    def run_training(self, save_model=False, evaluate_model=True) -> None:
         """Runs the entire training logic from sampling data to optimizing the model. Only the final model is saved."""
         print("Step 6: Starting training using " + str(self.device))
         # Store episode results for monitoring statistics
         episode_infos = deque(maxlen=100)
-        update = 0
+        total_steps = 0
 
-        while self.num_timesteps < self.total_timesteps:
+        for update in range(self.config["updates"]):
             # Decay hyperparameters polynomially based on the provided config
             learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"], self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
             beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
@@ -126,40 +124,46 @@ class PPOTrainer:
             training_stats = np.mean(training_stats, axis=0)
             #print(f"DEBUG training_stats: {training_stats}")
 
-
             # Store recent episode infos
             episode_infos.extend(sampled_episode_info)
             episode_result = process_episode_info(episode_infos)
             #print(f"DEBUG episode_result: {episode_result}")
 
             print(sampled_episode_info)
-            print(f'Sampled_info_length: {len(sampled_episode_info)}')
-            executed_steps = sum([d['length'] for d in sampled_episode_info])
+            print(f'Sampled_info_length: {len(sampled_episode_info)}') # Can take up a lot of screenspace in the later stages of training
+            executed_steps = sum([d['length'] for d in sampled_episode_info]) # WARNING: This does not give you the full overview!
             print(f'Executed steps: {executed_steps}')
-            self.num_timesteps += executed_steps
-            print(f'Total env steps: {self.num_timesteps}')
+            total_steps += executed_steps
+            print(f'Total env steps: {total_steps}')
             
-            # Print training statistics
-            if "success" in episode_result:
-                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
-                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
-            else:
-                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
-                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
-            print(result)
-
-            update += 1
-            update = min(update, self.total_updates) # Bound it at self.total_updates
+            # It can happen that there are no episode results in the first update,
+            # because no worker was able to finish an episode
+            if episode_result:
+                if "success" in episode_result:
+                    result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
+                        update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success"],
+                        training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
+                else:
+                    result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
+                        update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
+                        training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
+                    print(result)
 
             # Write training statistics to tensorboard
-            self._write_gradient_summary(self.num_timesteps, grad_info)
-            self._write_training_summary(self.num_timesteps, training_stats, episode_result)
+            self._write_gradient_summary(update, grad_info)
+            self._write_training_summary(update, training_stats, episode_result)
 
         # Save the trained model at the end of the training
         if save_model:
             self._save_model()
+
+        # Evaluate the model after training
+        # Question: shouldn't we return the model and the variables we need to
+        #           evaluate and do this outside of the 'run_training' method?
+        if evaluate_model:
+            score = evaluate(self.model, 10, self.config, self.memory, self.memory_mask, self.memory_indices, self.memory_length, self.device)
+            return score
+
 
     def _sample_training_data(self) -> list:
         """Runs all n workers for n steps to sample training data.
