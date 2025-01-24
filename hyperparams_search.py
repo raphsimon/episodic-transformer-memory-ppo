@@ -1,3 +1,5 @@
+import sys
+import logging
 import torch
 import argparse
 import traceback
@@ -22,7 +24,8 @@ and also used to prune other trials.
 """
 
 def optimize_hyperparameters(study_name, optimize_trial, database_url, n_trials=100, max_total_trials=None):
-
+    # Add stream handler of stdout to show the messages
+    optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
     print(f"Provided database: {database_url}")
 
     sqlite_timeout = 300
@@ -166,23 +169,25 @@ if __name__ == '__main__':
         else:
             device = torch.device("cpu")
             torch.set_default_tensor_type("torch.FloatTensor")
-        # Here we need to sample hyperparams and run the training
-        sampled_hyperparams = suggest_ppo_trxl_params(trial)
-
-        # Merge sampled hyperparameters with the base config
-        config.update(sampled_hyperparams)
         
-        try: 
+        try:
+            # Here we need to sample hyperparams and run the training
+            sampled_hyperparams = suggest_ppo_trxl_params(trial)
+            # Merge sampled hyperparameters with the base config
+            config.update(sampled_hyperparams)
             # Initialize the PPO trainer and commence training
             trainer = PPOTrainer(config, run_id=str(trial.number), device=device)
             score = trainer.run_training(save_model=False, evaluate_model=True)
             # The score we use is the mean undiscounted return over 10 episodes
+            print(f"Trial {trial.number} finished with score {score}")
             return score
         except Exception as e:
             print(f"An error occurred during training:")
             traceback.print_exc()
+            return float('-inf')  # Return worst possible score on failure
         finally:
-            trainer.close()
+            if trainer is not None:
+                trainer.close()
             if device.type == 'cuda':
                 torch.cuda.empty_cache()
 
