@@ -23,7 +23,8 @@ value is then stored alongside other trial details in the database,
 and also used to prune other trials.
 """
 
-def optimize_hyperparameters(study_name, optimize_trial, database_url, n_trials=100, max_total_trials=None):
+def optimize_hyperparameters(study_name, optimize_trial, database_url, 
+                             n_trials=100, max_total_trials=None):
     # Add stream handler of stdout to show the messages
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
     print(f"Provided database: {database_url}")
@@ -194,7 +195,7 @@ if __name__ == '__main__':
                             help="Example: sqlite:///optuna.db")
         parser.add_argument("--trials", type=int, default=50, 
                             help="Number of trials to run.")
-        parser.add_argument("--max_total_trials", type=int, default=500,
+        parser.add_argument("--max_total_trials", type=int, default=None,
                             help="Maximum total number of trials to run. We count running, pruned, and completed trials.")
         parser.add_argument("--cpu", action="store_true",
                             help="Force training on CPU.")
