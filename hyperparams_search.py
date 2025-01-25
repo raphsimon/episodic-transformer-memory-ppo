@@ -139,6 +139,28 @@ def suggest_ppo_trxl_params(trial: optuna.Trial):
     
     return hyperparams
 
+def optimize_trial(trial):
+    # Determine the device to be used for training and set the default tensor type
+    if not args.cpu:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.is_available():
+            torch.set_default_tensor_type("torch.cuda.FloatTensor")
+    else:
+        device = torch.device("cpu")
+        torch.set_default_tensor_type("torch.FloatTensor")
+    
+    # Here we need to sample hyperparams and run the training
+    sampled_hyperparams = suggest_ppo_trxl_params(trial)
+    # Merge sampled hyperparameters with the base config
+    config.update(sampled_hyperparams)
+    # Initialize the PPO trainer and commence training
+    trainer = PPOTrainer(config, run_id=str(trial.number), device=device)
+    score = trainer.run_training(save_model=False, evaluate_model=True)
+    # The score we use is the mean undiscounted return over 10 episodes
+    print(f"Trial {trial.number} finished with score {score}")
+    trainer.close()
+    return score
+
 if __name__ == '__main__':
 
     def argparser():
@@ -160,36 +182,6 @@ if __name__ == '__main__':
     env_name = config["environment"]["name"]
     study_name = f"PPO-TrXL_{env_name}"
 
-    def optimize_trial(trial):
-        # Determine the device to be used for training and set the default tensor type
-        if not args.cpu:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            if torch.cuda.is_available():
-                torch.set_default_tensor_type("torch.cuda.FloatTensor")
-        else:
-            device = torch.device("cpu")
-            torch.set_default_tensor_type("torch.FloatTensor")
-        
-        try:
-            # Here we need to sample hyperparams and run the training
-            sampled_hyperparams = suggest_ppo_trxl_params(trial)
-            # Merge sampled hyperparameters with the base config
-            config.update(sampled_hyperparams)
-            # Initialize the PPO trainer and commence training
-            trainer = PPOTrainer(config, run_id=str(trial.number), device=device)
-            score = trainer.run_training(save_model=False, evaluate_model=True)
-            # The score we use is the mean undiscounted return over 10 episodes
-            print(f"Trial {trial.number} finished with score {score}")
-            return score
-        except Exception as e:
-            print(f"An error occurred during training:")
-            traceback.print_exc()
-            return float('-inf')  # Return worst possible score on failure
-        finally:
-            if trainer is not None:
-                trainer.close()
-            if device.type == 'cuda':
-                torch.cuda.empty_cache()
-
-    optimize_hyperparameters(study_name, optimize_trial, args.db_url, args.trials, args.max_total_trials)
+    optimize_hyperparameters(study_name, optimize_trial, args.db_url, 
+                             args.trials, args.max_total_trials)
 
