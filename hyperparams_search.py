@@ -70,18 +70,26 @@ def optimize_hyperparameters(study_name, optimize_trial, database_url, n_trials=
         ]
         completed_trials = len(study.get_trials(states=counted_states))
         if completed_trials < max_total_trials:
-            return study.optimize(
-                    optimize_trial,
-                    callbacks=[
-                        MaxTrialsCallback(
-                            max_total_trials,
-                            states=counted_states,
-                        )   
-                    ],
-                    gc_after_trial=True
-                )
+            study.optimize(
+                optimize_trial,
+                callbacks=[
+                    MaxTrialsCallback(
+                        max_total_trials,
+                        states=counted_states,
+                    )   
+                ],
+                gc_after_trial=True
+            )
     else:
-        return study.optimize(optimize_trial, n_trials=n_trials, gc_after_trial=True)
+        study.optimize(optimize_trial, n_trials=n_trials, gc_after_trial=True)
+
+    # Print results
+    print(f"Best value (accuracy): {study.best_value:.4f}")
+    print("\nBest hyperparameters:")
+    for param, value in study.best_params.items():
+        print(f"{param}: {value}")
+
+    return study
 
 def suggest_ppo_trxl_params(trial: optuna.Trial):
     """
@@ -158,17 +166,23 @@ def optimize_trial(trial):
         device = torch.device("cpu")
         torch.set_default_tensor_type("torch.FloatTensor")
     
-    # Here we need to sample hyperparams and run the training
-    sampled_hyperparams = suggest_ppo_trxl_params(trial)
-    # Merge sampled hyperparameters with the base config
-    config.update(sampled_hyperparams)
-    # Initialize the PPO trainer and commence training
-    trainer = PPOTrainer(config, run_id=str(trial.number), device=device)
-    score = trainer.run_training(save_model=False, evaluate_model=True)
-    # The score we use is the mean undiscounted return over 10 episodes
-    print(f"Trial {trial.number} finished with score {score}")
-    trainer.close()
-    return score
+    try:
+        # Here we need to sample hyperparams and run the training
+        sampled_hyperparams = suggest_ppo_trxl_params(trial)
+        # Merge sampled hyperparameters with the base config
+        config.update(sampled_hyperparams)
+        # Initialize the PPO trainer and commence training
+        trainer = PPOTrainer(config, run_id=str(trial.number), device=device)
+        score = trainer.run_training(save_model=False, evaluate_model=True)
+        # The score we use is the mean undiscounted return over 10 episodes
+        print(f"Trial {trial.number} finished with score {score}")
+        trainer.close()
+        return score
+    except Exception as e:
+        print(f"Trial {trial.number} failed: {str(e)}")
+        print(traceback.format_exc())
+        trainer.close()
+        raise  # Re-raise to let Optuna handle the failure
 
 if __name__ == '__main__':
 
@@ -191,6 +205,6 @@ if __name__ == '__main__':
     env_name = config["environment"]["name"]
     study_name = f"PPO-TrXL_{env_name}"
 
-    optimize_hyperparameters(study_name, optimize_trial, args.db_url, 
-                             args.trials, args.max_total_trials)
+    study = optimize_hyperparameters(study_name, optimize_trial, args.db_url, 
+                                     args.trials, args.max_total_trials)
 
