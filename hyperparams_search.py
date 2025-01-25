@@ -35,7 +35,16 @@ def optimize_hyperparameters(study_name, optimize_trial, database_url, n_trials=
             'connect_args': {'timeout': sqlite_timeout},
         }
     elif "postgresql" in database_url:
-        engine_kwargs = {"poolclass": NullPool}
+        engine_kwargs = {
+            "poolclass": NullPool,
+            "connect_args": {
+                "connect_timeout": 60,
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10
+            }
+        }
+    print(f'Using {engine_kwargs} for engine_kwargs')
 
     storage = optuna.storages.RDBStorage(
         database_url,
