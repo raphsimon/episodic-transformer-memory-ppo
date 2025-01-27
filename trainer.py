@@ -397,5 +397,5 @@ class PPOTrainer:
         except:
             pass
 
-        time.sleep(1.0)
-        exit(0)
+        #time.sleep(1.0)
+        #exit(0)
