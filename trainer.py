@@ -143,6 +143,8 @@ class PPOTrainer:
                         update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
                         training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
                     print(result)
+            else:
+                print(f'Update {update} - No episode results yet')
 
             # Write training statistics to tensorboard
             self._write_gradient_summary(update, grad_info)
