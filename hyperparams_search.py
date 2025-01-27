@@ -111,7 +111,7 @@ def suggest_ppo_trxl_params(trial: optuna.Trial):
     transformer_num_heads = trial.suggest_categorical("transformer_num_heads", [1, 4, 8])
     transformer_memory_length = trial.suggest_categorical("transformer_memory_length", [16, 32, 64])
     transformer_positional_encoding = trial.suggest_categorical("transformer_positional_encoding", ["", "relative", "learned"])
-    transformer_layer_norm = trial.suggest_categorical("transformer_layer_norm", ["", "pre", "post"])
+    transformer_layer_norm = trial.suggest_categorical("transformer_layer_norm", ["pre", "post"])
     transformer_gtrxl = trial.suggest_categorical("transformer_gtrxl", [True, False])
     transformer_gtrxl_bias = trial.suggest_categorical("transformer_gtrxl_bias", [0.0, 2.0])
     learning_rate_initial = trial.suggest_categorical("learning_rate_initial", [2.0e-4, 2.75e-4, 3.0e-4, 3.5e-4])
