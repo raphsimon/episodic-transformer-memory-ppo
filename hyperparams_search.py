@@ -29,34 +29,34 @@ def optimize_hyperparameters(study_name, optimize_trial, database_url,
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
     print(f"Provided database: {database_url}")
 
-    sqlite_timeout = 300
-    engine_kwargs = None
-    if "sqlite" in database_url:
-        engine_kwargs={
-            'connect_args': {'timeout': sqlite_timeout},
-        }
-    elif "postgresql" in database_url:
-        engine_kwargs = {
-            "poolclass": NullPool,
-            "connect_args": {
-                "connect_timeout": 60,
-                "keepalives": 1,
-                "keepalives_idle": 30,
-                "keepalives_interval": 10
-            }
-        }
-    print(f'Using {engine_kwargs} for engine_kwargs')
-
-    storage = optuna.storages.RDBStorage(
-        database_url,
-        engine_kwargs=engine_kwargs,
-        heartbeat_interval=60,
-        grace_period=120,
-        failed_trial_callback=RetryFailedTrialCallback(max_retry=2),
-    )
+    #sqlite_timeout = 300
+    #engine_kwargs = None
+    #if "sqlite" in database_url:
+    #    engine_kwargs={
+    #        'connect_args': {'timeout': sqlite_timeout},
+    #    }
+    #elif "postgresql" in database_url:
+    #    engine_kwargs = {
+    #        "poolclass": NullPool,
+    #        "connect_args": {
+    #            "connect_timeout": 60,
+    #            "keepalives": 1,
+    #            "keepalives_idle": 30,
+    #            "keepalives_interval": 10
+    #        }
+    #    }
+    #print(f'Using {engine_kwargs} for engine_kwargs')
+#
+    #storage = optuna.storages.RDBStorage(
+    #    database_url,
+    #    engine_kwargs=engine_kwargs,
+    #    heartbeat_interval=60,
+    #    grace_period=120,
+    #    failed_trial_callback=RetryFailedTrialCallback(max_retry=2),
+    #)
     study = optuna.create_study(
         study_name=study_name,
-        storage=storage,
+        storage=database_url,
         load_if_exists=True,
         direction='maximize'
     ) # No sampler is specified, so a default sampler (TPE) is used.
